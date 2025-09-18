@@ -13,6 +13,11 @@ let color_map = {
     "red": vec3(1, 0, 0),
     "green": vec3(0, 1, 0),
     "blue": vec3(0, 0, 1),
+    "magenta": vec3(1, 0, 1),
+    "cyan": vec3(0, 1, 1),
+    "yellow": vec3(1, 1, 0),
+    "black": vec3(0, 0, 0),
+    "white": vec3(1, 1, 1),
 }
 
 async function main() {
@@ -117,8 +122,8 @@ async function main() {
     var last_two_colors = [];
     let triangle_count = 0;
     let circle_count = 0;
-    let circle_center = [];
-    let circle_center_color = [];
+    let circle_center = vec2(0, 0);
+    let circle_center_color = vec3(0, 0, 0);
     canvas.addEventListener("click", function (event) {
         if (draw_mode == 0) {
             const rect = canvas.getBoundingClientRect();
@@ -161,8 +166,6 @@ async function main() {
                 let y = (canvas.height - (event.clientY - rect.top)) / canvas.height * 2 - 1;
                 positions.splice(-12);
                 colors.splice(-12);
-                console.log(positions.length);
-                console.log(colors.length);
 
                 positions.push(last_two_pos[0]);
                 positions.push(last_two_pos[1]);
@@ -172,7 +175,6 @@ async function main() {
                 colors.push(color_map[color_selector.value]);
 
                 triangle_count = 0;
-
                 last_two_pos.length = 0;
                 last_two_colors.length = 0;
 
@@ -190,8 +192,8 @@ async function main() {
                 let y = (canvas.height - (event.clientY - rect.top)) / canvas.height * 2 - 1;
                 const point_size = 10 * (2 / canvas.height);
 
-                last_two_pos.push(vec2(x, y));
-                last_two_colors.push(color_map[color_selector.value]);
+                circle_center = vec2(x, y);
+                circle_center_color = color_map[color_selector.value];
 
                 add_point(positions, vec2(x, y), point_size);
                 for (let i = 0; i < 6; i++) {
@@ -205,24 +207,29 @@ async function main() {
                 let rect = canvas.getBoundingClientRect();
                 let x = (event.clientX - rect.left) / canvas.width * 2 - 1;
                 let y = (canvas.height - (event.clientY - rect.top)) / canvas.height * 2 - 1;
-                let middle = circle_center[0];
-                console.log(middle);
-                let middle_x = 0;
-                let middle_y = 0;
-                let radius = Math.sqrt((x - middle_x) ** 2 + (y - middle_y) ** 2);
+
+                let radius = Math.sqrt((x - circle_center[0]) ** 2 + (y - circle_center[1]) ** 2);
                 positions.splice(-6);
                 colors.splice(-6);
                 const num_segments = 30;
                 for (let i = 0; i < num_segments; i++) {
                     let angle = (i / num_segments) * Math.PI * 2;
-                    let px = circle_center[0][0] + Math.cos(angle) * radius;
-                    let py = circle_center[0][1] + Math.sin(angle) * radius;
+                    let px = circle_center[0] + Math.cos(angle) * radius;
+                    let py = circle_center[1] + Math.sin(angle) * radius;
                     positions.push(vec2(px, py));
-                    colors.push(circle_center_color[0]);
+                    colors.push(color_map[color_selector.value]);
+                    let next_angle = ((i + 1) / num_segments) * Math.PI * 2;
+                    let nx = circle_center[0] + Math.cos(next_angle) * radius;
+                    let ny = circle_center[1] + Math.sin(next_angle) * radius;
+                    positions.push(vec2(nx, ny));
+                    colors.push(color_map[color_selector.value]);
+
+                    positions.push(circle_center);
+                    colors.push(circle_center_color);
                 }
                 circle_count = 0;
-                circle_center.length = 0;
-                circle_center_color.length = 0;
+                circle_center = vec2(0, 0);
+                circle_center_color = vec3(0, 0, 0);
 
                 device.queue.writeBuffer(positionBuffer, 0, flatten(positions));
                 device.queue.writeBuffer(colorBuffer, 0, flatten(colors));
