@@ -2,7 +2,5 @@
 
 PORT ?= 8000
 
-serve:
+server:
 	python3 -m http.server $(PORT)
-
- 
