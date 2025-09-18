@@ -22,14 +22,10 @@ async function main() {
     });
 
 
-    const point_size = 10 * (2 / canvas.height);
-    /*
+    const point_size = 1;
     var positions = [];
     add_point(positions, vec2(0.0, 0.0), point_size);
-    add_point(positions, vec2(1.0, 1.0), point_size);
-    add_point(positions, vec2(1.0, 0.0), point_size);
-    */
-    var positions = [vec2(0.0, 0.0), vec2(1.0, 1.0), vec2(1.0, 0.0)];
+
     const positionBuffer = device.createBuffer({
         size: flatten(positions).byteLength,
         usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
@@ -41,20 +37,6 @@ async function main() {
             format: 'float32x2',
             offset: 0,
             shaderLocation: 0, // Position, see vertex shader
-        }],
-    };
-    var colors = [vec3(1.0, 0.0, 0.0), vec3(0.0, 0.0, 1.0), vec3(0.0, 1.0, 0.0),];
-    const colorBuffer = device.createBuffer({
-        size: flatten(colors).byteLength,
-        usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
-    });
-    device.queue.writeBuffer(colorBuffer, /*bufferOffset=*/0, flatten(colors));
-    const colorBufferLayout = {
-        arrayStride: sizeof['vec3'],
-        attributes: [{
-            format: 'float32x3',
-            offset: 0,
-            shaderLocation: 1, // Color, see vertex shader
         }],
     };
 
@@ -69,7 +51,7 @@ async function main() {
         vertex: {
             module: wgsl,
             entryPoint: 'main_vs',
-            buffers: [positionBufferLayout, colorBufferLayout],
+            buffers: [positionBufferLayout],
         },
         fragment: {
             module: wgsl,
@@ -78,23 +60,29 @@ async function main() {
         },
         primitive: { topology: 'triangle-list', },
     });
-    /*
-        let bytelength = 5 * sizeof['vec4']; // Buffers are allocated in vec4 chunks
-        let uniforms = new ArrayBuffer(bytelength);
-        const uniformBuffer = device.createBuffer({
-            size: uniforms.byteLength,
-            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-        });
-        const bindGroup = device.createBindGroup({
-            layout: pipeline.getBindGroupLayout(0),
-            entries: [{
-                binding: 0,
-                resource: { buffer: uniformBuffer }
-            }],
-        });
-    */
 
-    // Create a render pass in a command buffer and submit it
+    let bytelength = 5 * sizeof['vec4']; // Buffers are allocated in vec4 chunks
+    let uniforms = new ArrayBuffer(bytelength);
+    const uniformBuffer = device.createBuffer({
+        size: uniforms.byteLength,
+        usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+    });
+    const bindGroup = device.createBindGroup({
+        layout: pipeline.getBindGroupLayout(0),
+        entries: [{
+            binding: 0,
+            resource: { buffer: uniformBuffer }
+        }],
+    });
+
+    let theta = 0.0;
+
+    function render_frame(time) {
+    theta += 0.01;
+    const uniforms = new Float32Array([theta]);
+    device.queue.writeBuffer(uniformBuffer, /*bufferOffset=*/0, uniforms.buffer, 0, uniforms.byteLength);
+
+    // Create a render pass in a command buffer and submit it   
     const encoder = device.createCommandEncoder();
     const pass = encoder.beginRenderPass({
         colorAttachments: [{
@@ -107,9 +95,13 @@ async function main() {
     // Insert render pass commands here
     pass.setPipeline(pipeline);
     pass.setVertexBuffer(0, positionBuffer);
-    pass.setVertexBuffer(1, colorBuffer);
+    pass.setBindGroup(0, bindGroup);
     pass.draw(positions.length)
 
     pass.end();
-    device.queue.submit([encoder.finish()])
+    device.queue.submit([encoder.finish()]);
+    requestAnimationFrame(render_frame);
+}
+    requestAnimationFrame(render_frame);
+
 }
