@@ -43,6 +43,12 @@ async function main() {
         0, 1, 1, 5, 5, 4, 4, 0 // left
     ]);
 
+    const indexBuffer = device.createBuffer({
+        size: wire_indices.byteLength,
+        usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
+    });
+    device.queue.writeBuffer(indexBuffer, 0, flatten(wire_indices));
+
     var line_positions = [];
     for (let i = 0; i < wire_indices.length; i++) {
         var pos = positions[wire_indices[i]];
@@ -160,7 +166,9 @@ async function main() {
         pass.setPipeline(pipeline);
         pass.setVertexBuffer(0, positionBuffer);
         pass.setBindGroup(0, bindGroup);
-        pass.draw(line_positions.length)
+        pass.setIndexBuffer(indexBuffer,"uint32");
+        pass.drawIndexed(wire_indices.length);
+        pass.draw(line_positions.length);
 
         pass.end();
         device.queue.submit([encoder.finish()])
