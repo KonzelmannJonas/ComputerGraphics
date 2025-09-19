@@ -77,23 +77,29 @@ async function main() {
         primitive: { topology: 'line-list', },
     });
 
-    const eye = vec3(0.0, 0.0, 0.0);
-    const lookat = vec3(1.0, 1.0, 1.0);
+    const eye = vec3(0,0,0);
+    const lookat = vec3(1,1,1);
     const up = vec3(0.0, 1.0, 0.0);
     // NDC coordinates in WebGPU are in [-1,1]x[-1,1]x[0,1]
+    /*
     const projection = mat4(1.0, 0.0, 0.0, 0.0,
         0.0, 1.0, 0.0, 0.0,
         0.0, 0.0, -0.5, 0.5,
         0.0, 0.0, 0.0, 1.0);
+        */
+    const projection = ortho(-1.0,1.0,-1.0,1.0,-4.0,2.0);
     const view = lookAt(eye, lookat, up);
-    // const mvp = mult(projection, view);
-    const T = translate( 0.0, -0.5, 0.5); // Model matrix translates the cube to the origin
+    const mvp = mult(projection, view);
+
+    /*
+    const T = translate( 0.0, 0., 0.); // Model matrix translates the cube to the origin
     const Rx = rotateX(30);
-    const Ry = rotateY(30);
+    const Ry = rotateY(45);
     var alpha = 0.5
     const S = scalem(alpha, alpha, alpha);
+    */
 
-    const mvp = mult(projection, mult(T, mult(Rx, mult(Ry, S))));
+    // const mvp = mult(mult(T, mult(Rx, mult(Ry, S))), projection);
     const uniformBuffer = device.createBuffer({
         size: sizeof['mat4'],
         usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
