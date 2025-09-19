@@ -44,23 +44,27 @@ async function main() {
     ]);
 
     const indexBuffer = device.createBuffer({
-        size: wire_indices.byteLength,
+        size: flatten(wire_indices).byteLength,
         usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
     });
     device.queue.writeBuffer(indexBuffer, 0, flatten(wire_indices));
 
+    /*
     var line_positions = [];
     for (let i = 0; i < wire_indices.length; i++) {
         var pos = positions[wire_indices[i]];
         line_positions.push(vec4(pos, 1.0));
     }
     console.log(line_positions.length);
-
+*/
     const positionBuffer = device.createBuffer({
-        size: flatten(line_positions).byteLength,
+        size: 128,
         usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
     });
-    device.queue.writeBuffer(positionBuffer, 0, flatten(line_positions));
+    console.log(positions.length);
+    console.log(flatten(positions).byteLength);
+
+    device.queue.writeBuffer(positionBuffer, 0, flatten(positions));
     const positionBufferLayout = {
         arrayStride: sizeof['vec4'],
         attributes: [{
@@ -101,7 +105,6 @@ async function main() {
         */
     // const projection = ortho(-1.0, 1.0, -1.0, 1.0, -4.0, 2.0);
     // const view = lookAt(eye, lookat, up);
-    var mvp = mat4();
 
     /*
     const T = translate( 0.0, 0., 0.); // Model matrix translates the cube to the origin
@@ -112,8 +115,36 @@ async function main() {
     */
 
     // const mvp = mult(mult(T, mult(Rx, mult(Ry, S))), projection);
+
+    // fill mvp array
+    var mvp_arr = [];
+
+    var eye = vec3(0, 0, 5);
+    var lookat = vec3(0, 0, 0);
+    var up = vec3(0.0, 1, 0.0);
+    var projection = perspective(45, 1, 0.1, 100);
+    var view = lookAt(eye, lookat, up);
+    var T = translate(0, 0, 0);
+    mvp_arr.push(mult(T, mult(projection, view)));
+
+    eye = vec3(5, 0, 5);
+    lookat = vec3(0, 0, 0);
+    up = vec3(0.0, 1, 0.0);
+    projection = perspective(45, 1, 0.1, 100);
+    view = lookAt(eye, lookat, up);
+    var T = translate(0, 0, 0);
+    mvp_arr.push(mult(T, mult(projection, view)));
+
+    eye = vec3(5, 5, 5);
+    lookat = vec3(0, 0, 0);
+    up = vec3(0.0, 1, 0.0);
+    projection = perspective(45, 1, 0.1, 100);
+    view = lookAt(eye, lookat, up);
+    var T = translate(0, 0, 0);
+    mvp_arr.push(mult(T, mult(projection, view)));
+
     const uniformBuffer = device.createBuffer({
-        size: sizeof['mat4'],
+        size: 3 * sizeof['mat4'],
         usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
     const bindGroup = device.createBindGroup({
@@ -123,57 +154,28 @@ async function main() {
             resource: { buffer: uniformBuffer }
         }],
     });
-    device.queue.writeBuffer(uniformBuffer, 0, flatten(mvp));
+    device.queue.writeBuffer(uniformBuffer, 0, flatten(mvp_arr));
 
-    function render_frame(time) {
-        if (draw_mode == 0) {
-            const eye = vec3(0, 0, 5);
-            const lookat = vec3(0, 0, 0);
-            const up = vec3(0.0, 1, 0.0);
-            const projection = perspective(45, 1, 0.1, 100);
-            const view = lookAt(eye, lookat, up);
-            mvp = mult(projection, view);
-        }
-        else if (draw_mode == 1) {
-            const eye = vec3(5, 0, 5);
-            const lookat = vec3(0, 0, 0);
-            const up = vec3(0.0, 1, 0.0);
-            const projection = perspective(45, 1, 0.1, 100);
-            const view = lookAt(eye, lookat, up);
-            mvp = mult(projection, view);
-        }
-        else if (draw_mode == 2) {
-            const eye = vec3(5, 5, 5);
-            const lookat = vec3(0, 0, 0);
-            const up = vec3(0.0, 1, 0.0);
-            const projection = perspective(45, 1, 0.1, 100);
-            const view = lookAt(eye, lookat, up);
-            mvp = mult(projection, view);
-        }
-        device.queue.writeBuffer(uniformBuffer, 0, flatten(mvp));
+    // Create a render pass in a command buffer and submit it
+    const encoder = device.createCommandEncoder();
+    const pass = encoder.beginRenderPass({
+        colorAttachments: [{
+            view: context.getCurrentTexture().createView(),
+            loadOp: 'clear',
+            storeOp: 'store',
+            clearValue: { r: 0.3921, g: 0.5843, b: 0.9294, a: 1.0 },
+        }],
+    });
+    // Insert render pass commands here
+    pass.setPipeline(pipeline);
+    pass.setVertexBuffer(0, positionBuffer);
+    pass.setBindGroup(0, bindGroup);
+    pass.setIndexBuffer(indexBuffer, "uint32");
+    pass.drawIndexed(wire_indices.length, 3);
+    // pass.draw(positions.length);
 
-        // Create a render pass in a command buffer and submit it
-        const encoder = device.createCommandEncoder();
-        const pass = encoder.beginRenderPass({
-            colorAttachments: [{
-                view: context.getCurrentTexture().createView(),
-                loadOp: 'clear',
-                storeOp: 'store',
-                clearValue: { r: 0.3921, g: 0.5843, b: 0.9294, a: 1.0 },
-            }],
-        });
-        // Insert render pass commands here
-        pass.setPipeline(pipeline);
-        pass.setVertexBuffer(0, positionBuffer);
-        pass.setBindGroup(0, bindGroup);
-        pass.setIndexBuffer(indexBuffer,"uint32");
-        pass.drawIndexed(wire_indices.length);
-        pass.draw(line_positions.length);
+    pass.end();
+    device.queue.submit([encoder.finish()])
 
-        pass.end();
-        device.queue.submit([encoder.finish()])
 
-        requestAnimationFrame(render_frame);
-    }
-    requestAnimationFrame(render_frame);
 }
